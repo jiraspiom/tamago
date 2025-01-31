@@ -11,7 +11,7 @@ export default function Home() {
     setKey(prevKey => prevKey + 1)
   }
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gradient-to-r from-cyan-500 to-blue-500">
+    <main className="flex flex-1 min-h-screen flex-col items-center justify-center p-1 bg-gradient-to-r from-cyan-500 to-blue-500">
       <Tamago key={key} />
       <Button onClick={restartGame} className="mt-4">
         Restart Game

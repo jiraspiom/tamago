@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Heart,
   Pizza,
@@ -9,10 +9,12 @@ import {
   Activity,
   Clock,
   AlertTriangle,
+  Pill,
 } from 'lucide-react'
 
 import FoodMenu from './FoodMenu'
 import GameMenu from './GameMenu'
+import { motion } from 'framer-motion'
 import { EVOLUTION_THRESHOLDS } from '@/constants/tamago'
 import type {
   TamagotchiStats,
@@ -20,7 +22,6 @@ import type {
   Food,
   Game,
 } from '@/types/tamago'
-import { Card, CardHeader, CardTitle, CardContent } from './ui/card'
 
 export default function Tamago() {
   const [stats, setStats] = useState<TamagotchiStats>({
@@ -29,15 +30,17 @@ export default function Tamago() {
     energy: 100,
     health: 100,
     age: 0,
+    isSick: false,
   })
   const [stage, setStage] = useState<TamagotchiStage>('Egg')
   const [isSleeping, setIsSleeping] = useState(false)
+  const [isAnimating, setIsAnimating] = useState(false)
 
   const updateStat = useCallback(
     (stat: keyof TamagotchiStats, value: number) => {
       setStats(prev => ({
         ...prev,
-        [stat]: Math.max(0, Math.min(100, prev[stat] + value)),
+        [stat]: Math.max(0, Math.min(100, Number(prev[stat]) + value)),
       }))
     },
     []
@@ -55,6 +58,18 @@ export default function Tamago() {
             stats.hunger > 50 && stats.happiness > 50 ? 1 : -1
           )
           updateStat('age', 0.1)
+
+          // Chance of getting sick
+          if (Math.random() < 0.01 && !stats.isSick) {
+            setStats(prev => ({ ...prev, isSick: true }))
+            playSound('sick')
+          }
+
+          // Sickness effects
+          if (stats.isSick) {
+            updateStat('health', -2)
+            updateStat('happiness', -2)
+          }
         } else {
           updateStat('energy', 5)
         }
@@ -84,6 +99,7 @@ export default function Tamago() {
       updateStat('hunger', food.hungerIncrease)
       updateStat('happiness', food.happinessIncrease)
       playSound('eat')
+      animate()
     }
   }
 
@@ -92,6 +108,7 @@ export default function Tamago() {
       updateStat('happiness', game.happinessIncrease)
       updateStat('energy', -game.energyDecrease)
       playSound('play')
+      animate()
     }
   }
 
@@ -102,14 +119,28 @@ export default function Tamago() {
     }
   }
 
+  const heal = () => {
+    if (stage !== 'Dead' && stats.isSick) {
+      setStats(prev => ({ ...prev, isSick: false }))
+      updateStat('health', 20)
+      playSound('heal')
+      animate()
+    }
+  }
+
   const playSound = (sound: string) => {
-    // const audio = new Audio(`/sounds/${sound}.mp3`)
-    const audio = new Audio(`/sounds/${sound}.m4a`)
+    const audio = new Audio(`/sounds/${sound}.mp3`)
     audio.play()
+  }
+
+  const animate = () => {
+    setIsAnimating(true)
+    setTimeout(() => setIsAnimating(false), 500)
   }
 
   const getEmotion = () => {
     if (stage === 'Dead') return '💀'
+    if (stats.isSick) return '🤒'
     const average =
       (stats.hunger + stats.happiness + stats.energy + stats.health) / 4
     if (average > 70) return '😄'
@@ -125,9 +156,13 @@ export default function Tamago() {
         <CardTitle className="text-center">Tamago ({stage})</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-9xl mb-4 text-center">
+        <motion.div
+          className="text-9xl mb-4 text-center"
+          animate={isAnimating ? { y: [0, -20, 0] } : {}}
+          transition={{ duration: 0.5 }}
+        >
           {isSleeping ? '😴' : getEmotion()}
-        </div>
+        </motion.div>
         <div className="space-y-4 mb-4">
           <div className="flex items-center">
             <Pizza
@@ -179,9 +214,19 @@ export default function Tamago() {
           <div className="space-y-2">
             <FoodMenu onFeed={feed} disabled={isSleeping} />
             <GameMenu onPlay={play} disabled={isSleeping} />
-            <Button onClick={sleep} className="w-full">
-              {isSleeping ? 'Wake Up' : 'Sleep'}
-            </Button>
+            <div className="flex justify-between">
+              <Button onClick={sleep} className="flex-1 mr-2">
+                {isSleeping ? 'Wake Up' : 'Sleep'}
+              </Button>
+              <Button
+                onClick={heal}
+                disabled={!stats.isSick}
+                className="flex-1 ml-2"
+              >
+                <Pill className="mr-2" />
+                Heal
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

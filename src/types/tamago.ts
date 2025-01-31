@@ -12,6 +12,7 @@ export interface TamagotchiStats {
   energy: number
   health: number
   age: number
+  isSick: boolean
 }
 
 export interface Food {
